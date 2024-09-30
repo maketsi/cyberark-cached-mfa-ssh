@@ -31,7 +31,10 @@ class CyberarkSSHKeyFetcher:
             f"{self.BASEURL}/PasswordVault/API/auth/RADIUS/Logon/",
             headers = { "Content-Type": "application/json",
                         "Accept": "application/json" },
-            data = json.dumps({ "username": self.username, "password": self.password })
+            data = json.dumps({ "username": self.username,
+                                "password": self.password,
+                                "type": "radius",
+                                "secureMode": "true" })
         )
         if resp.status_code == 200:
             self.token = resp.content.decode('utf-8').strip('"')
@@ -62,7 +65,6 @@ class CyberarkSSHKeyFetcher:
 
     def get_key(self):
         """Retrieve the SSH key(s) from TSPAM and write them to ~/.ssh/id_cyberark_session* files."""
-        self.auth()
         resp = requests.post(
             f"{self.BASEURL}/PasswordVault/API/Users/Secret/SSHKeys/Cache/",
             headers = { "Content-Type": "application/json",
@@ -103,7 +105,7 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s: %(message)s')
     if os.getenv('DEBUG'):
         logging.getLogger().setLevel(logging.DEBUG)
-    dotenv.load_dotenv()
+    dotenv.load_dotenv(os.path.join(os.path.dirname(os.path.realpath(__file__)), ".env"))
 
     try:
         parser = argparse.ArgumentParser(description='Fetch SSH key from Cyberark PAM and store it in the SSH agent.')
@@ -111,6 +113,9 @@ if __name__ == "__main__":
         parser.add_argument('-u', '--username', help='Cyberark username. Defaults to current user.')
         args = parser.parse_args()
         baseurl = args.server or os.getenv('CYBERARK_BASEURL')
+        if not baseurl:
+            print("Error: Base URL for Cyberark required. Set it either via --server param or CYBERARK_BASEURL env.")
+            exit(1)
         print(f"Authenticating to {baseurl}")
         username = args.username or os.getenv('CYBERARK_USERNAME')
         if not username:
